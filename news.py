@@ -1,11 +1,12 @@
 # =====================================================
 # ELITE GLOBAL + INDIAN MARKET & CRYPTO ALERT TELEGRAM BOT
+# SAFE VERSION WITH ERROR HANDLING
 # =====================================================
 
 import feedparser
 import requests
 from datetime import datetime
-import pytz  # for timezone
+import pytz  # timezone support
 
 # ---------------- TELEGRAM CONFIG ----------------
 BOT_TOKEN = "8505207910:AAEoQz_86_4bu412JQK0rJ4gKihgNbuz2vU"
@@ -39,16 +40,19 @@ RSS_FEEDS = [
     "https://cointelegraph.com/rss"
 ]
 
-# ---------------- FETCH NEWS ----------------
+# ---------------- FETCH NEWS WITH ERROR HANDLING ----------------
 def fetch_news():
     headlines = []
     for feed in RSS_FEEDS:
-        data = feedparser.parse(feed)
-        for entry in data.entries[:3]:  # top 3 from each feed
-            headlines.append(entry.title)
+        try:
+            data = feedparser.parse(feed)
+            for entry in data.entries[:2]:  # take top 2 news per feed
+                headlines.append(entry.title)
+        except Exception as e:
+            print(f"[Warning] Failed to fetch feed: {feed} | Error: {e}")
     return list(set(headlines))  # remove duplicates
 
-# ---------------- ANALYZE IMPACT ----------------
+# ---------------- ANALYZE NEWS IMPACT ----------------
 def analyze_impact(news_list):
     report = ""
     score = 0
@@ -56,7 +60,7 @@ def analyze_impact(news_list):
     for h in news_list:
         hl = h.lower()
 
-        # Central Bank
+        # CENTRAL BANK
         if any(k in hl for k in ["fed", "rate cut", "dovish", "pause"]):
             report += f"• {h}\nImpact: Liquidity ↑ → Crypto, Stocks ↑\n\n"
             score += 5
@@ -64,29 +68,29 @@ def analyze_impact(news_list):
             report += f"• {h}\nImpact: Liquidity ↓ → Risk-OFF\n\n"
             score -= 5
 
-        # Inflation / Economic Data
+        # INFLATION / ECON DATA
         elif any(k in hl for k in ["cpi", "inflation", "jobs data", "gdp"]):
             report += f"• {h}\nImpact: Rate / growth expectations shift\n\n"
             score += 3
 
-        # War / Sanctions
+        # WAR / SANCTIONS
         elif any(k in hl for k in ["war", "conflict", "sanction", "attack"]):
             report += f"• {h}\nImpact: Oil & Gold ↑ → Crypto volatile\n\n"
             score -= 4
 
-        # Politicians
+        # POLITICIANS
         elif any(k in hl for k in ["president", "prime minister", "treasury", "minister"]):
             report += f"• {h}\nImpact: FX & global sentiment shift\n\n"
             score -= 2
 
-        # Crypto Regulation / ETF
+        # CRYPTO REGULATION / ETF
         elif any(k in hl for k in ["bitcoin etf", "crypto regulation", "ban", "sec"]):
             report += f"• {h}\nImpact: Direct Crypto Exchange Reaction\n\n"
             score += 4
 
     return report, score
 
-# ---------------- MARKET BIAS ----------------
+# ---------------- DETERMINE MARKET BIAS ----------------
 def determine_bias(score):
     if score >= 8:
         return "🟢 STRONG RISK-ON (Buy dips, momentum favored)"
@@ -97,12 +101,13 @@ def determine_bias(score):
 
 # ---------------- SEND TELEGRAM ALERT ----------------
 def send_alert():
-    news = fetch_news()
-    analysis, score = analyze_impact(news)
-    bias = determine_bias(score)
+    try:
+        news = fetch_news()
+        analysis, score = analyze_impact(news)
+        bias = determine_bias(score)
 
-    ist = pytz.timezone("Asia/Kolkata")
-    message = f"""
+        ist = pytz.timezone("Asia/Kolkata")
+        message = f"""
 🚨 *GLOBAL + INDIAN MARKET & CRYPTO ALERT*
 🕒 {datetime.now(ist).strftime('%d %b %Y | %H:%M IST')}
 
@@ -114,12 +119,19 @@ def send_alert():
 
 ⚠️ Focus on liquidity, not noise.
 """
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    requests.post(TG_URL, data=payload)
+
+        payload = {
+            "chat_id": CHAT_ID,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+        response = requests.post(TG_URL, data=payload)
+        if response.status_code == 200:
+            print("[Success] Alert sent to Telegram ✅")
+        else:
+            print(f"[Error] Failed to send Telegram alert | Status Code: {response.status_code}")
+    except Exception as e:
+        print(f"[Error] Failed to send alert: {e}")
 
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
