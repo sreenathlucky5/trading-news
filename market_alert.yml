@@ -1,0 +1,26 @@
+name: Daily Market Alert
+
+on:
+  schedule:
+    - cron: "30 12 * * *"  # 12:30 UTC = 18:00 IST daily
+  workflow_dispatch:
+
+jobs:
+  run-market-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        pip install feedparser requests pytz
+
+    - name: Run Market Alert Bot
+      run: python market_alert_bot.py
